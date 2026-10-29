@@ -4,7 +4,7 @@
  * 定义对外服务接口与数据传输模型。
  */
 
-import { Token } from '@openlearn/plugin-sdk';
+import { Token } from '../sdk-tokens.js';
 
 /** 便签支持的语义颜色。 */
 export type NoteColor = 'yellow' | 'pink' | 'blue' | 'green' | 'purple';

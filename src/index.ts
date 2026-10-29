@@ -9,7 +9,7 @@
  */
 
 import type { PluginContext } from '@openlearn/plugin-sdk';
-import { IDatabaseToken } from '@openlearn/plugin-sdk';
+import { IDatabaseToken } from './sdk-tokens.js';
 import {
   WhiteboardStickyNotesServiceToken,
   type IWhiteboardStickyNotesService,
@@ -31,7 +31,7 @@ export default {
   manifest: {
     id: PLUGIN_ID,
     name: '课堂便签',
-    version: '0.1.2',
+    version: '0.1.3',
     main: 'index.js',
     executionMode: 'process',
     description: '基于 OpenLearn 的师生双轨制互动便签贴，支持多色卡片、实名/匿名发言、教师置顶与一键清屏',
