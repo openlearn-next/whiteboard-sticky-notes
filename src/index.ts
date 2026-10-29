@@ -31,7 +31,7 @@ export default {
   manifest: {
     id: PLUGIN_ID,
     name: '课堂便签',
-    version: '0.1.0',
+    version: '0.1.2',
     main: 'index.js',
     executionMode: 'process',
     description: '基于 OpenLearn 的师生双轨制互动便签贴，支持多色卡片、实名/匿名发言、教师置顶与一键清屏',
@@ -52,10 +52,21 @@ export default {
         id: 'tool_sticky_notes',
         name: '课堂便签',
         icon: 'StickyNote',
-        commandType: 'stickynotes.open_board',
+        commandType: 'whiteboard.draw',
         payload: {
           lessonId: '$lessonId',
-          classId: '$classId',
+          type: 'plugin',
+          data: JSON.stringify({
+            pluginId: PLUGIN_ID,
+            teacherWidgetId: 'sticky_notes_board',
+            studentWidgetId: 'sticky_notes_board',
+            title: '课堂便签',
+            width: 640,
+            height: 480,
+            x: 120,
+            y: 80,
+            page: 0,
+          }),
         },
       },
     ],
@@ -69,12 +80,28 @@ export default {
           position: 35,
         },
       ],
+      'teacher.dashboard.widget': [
+        {
+          id: 'sticky_notes_board',
+          label: '课堂便签',
+          icon: 'StickyNote',
+          view: 'storage/teacher.html',
+        },
+      ],
+      'student.view': [
+        {
+          id: 'sticky_notes_board',
+          label: '课堂便签',
+          icon: 'StickyNote',
+          view: 'storage/student.html',
+        },
+      ],
       'student.classroom.overlay': [
         {
           id: 'ov_sticky_notes',
           label: '课堂便签',
           icon: 'StickyNote',
-          view: 'storage/student.html',
+          view: 'storage/student.html?mode=compact',
         },
       ],
     },
@@ -246,6 +273,8 @@ export default {
             await commandBus.execute({
               id: crypto.randomUUID(),
               type: 'whiteboard.draw',
+              // 复用打开看板的 actor，避免以空身份向宿主内核白板写入元素
+              actorId: command.actorId,
               payload: {
                 lessonId,
                 type: 'plugin',

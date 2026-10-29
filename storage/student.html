@@ -405,7 +405,9 @@
         lessonId: '',
         classId: '',
         studentId: '',
-        studentName: '学生',
+        // 真实姓名由宿主沙箱桥（init / context-update 的 studentName）下发；
+        // 拿不到时才回退为「同学」，不再硬编码成「学生」冒充实名。
+        studentName: '',
         currentColor: 'yellow',
         notes: [],
         isMinimized: false,
@@ -446,8 +448,8 @@
       // 1. 初始化桥接
       bridge.onInit(function (ctx) {
         state.pluginId = ctx.pluginId || '';
-        state.lessonId = ctx.lessonId || 'default';
-        state.classId = ctx.classId || 'default';
+        state.lessonId = ctx.lessonId || '';
+        state.classId = ctx.classId || '';
         if (ctx.studentId) state.studentId = ctx.studentId;
         if (ctx.studentName) state.studentName = ctx.studentName;
         if (ctx.theme === 'dark') {
@@ -464,6 +466,8 @@
         if (ctx.classId) {
           state.classId = ctx.classId;
         }
+        if (ctx.studentId) state.studentId = ctx.studentId;
+        if (ctx.studentName) state.studentName = ctx.studentName;
         if (!compactMode) fetchNotes();
       });
 
@@ -567,6 +571,11 @@
           bridge.ui.toast('请输入便签内容', 'warning');
           return;
         }
+        if (!state.lessonId) {
+          // 便签墙按课节作用域归属；没有课节上下文的便签教师端看不到，直接拦下
+          bridge.ui.toast('请先进入当前课节再张贴便签', 'warning');
+          return;
+        }
 
         try {
           dom.btnSubmit.disabled = true;
@@ -574,9 +583,10 @@
 
           await bridge.invokeCommand('stickynotes.create_note', {
             classId: state.classId || 'default',
-            lessonId: state.lessonId || 'default',
+            lessonId: state.lessonId || undefined,
             authorId: state.studentId || 'std_' + Math.random().toString(36).slice(2, 8),
-            authorName: state.studentName || '同学',
+            // 匿名由服务端统一改写为「热心同学」；实名必须带上宿主下发的真实姓名。
+            authorName: dom.isAnonymous.checked ? '同学' : state.studentName || '同学',
             content: text,
             color: state.currentColor,
             isAnonymous: dom.isAnonymous.checked,

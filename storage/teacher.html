@@ -372,6 +372,13 @@
         isLoading: false,
       };
 
+      // 沙箱 iframe 未授予 allow-modals，原生确认弹窗恒为假值，删除/清屏改用两次点击确认。
+      let pendingDeleteId = null;
+      let pendingDeleteTimer = null;
+      let pendingClearConfirm = false;
+      let pendingClearTimer = null;
+      const CLEAR_BOARD_LABEL = '🧹 一键清屏归档';
+
       const dom = {
         classContextDesc: document.getElementById('classContextDesc'),
         statTotal: document.getElementById('statTotal'),
@@ -390,8 +397,8 @@
       };
 
       bridge.onInit(function (ctx) {
-        state.classId = ctx.classId || 'default';
-        state.lessonId = ctx.lessonId || 'default';
+        state.classId = ctx.classId || '';
+        state.lessonId = ctx.lessonId || '';
         updateContextDesc();
         fetchNotes();
       });
@@ -413,8 +420,8 @@
       });
 
       function updateContextDesc() {
-        const lessonName = state.lessonId && state.lessonId !== 'default' ? state.lessonId : '课堂协同';
-        const className = state.classId && state.classId !== 'default' ? state.classId : '默认班级';
+        const lessonName = state.lessonId || '课堂协同';
+        const className = state.classId || '默认班级';
         dom.classContextDesc.textContent = `当前课堂: ${lessonName} | 班级: ${className}`;
       }
 
@@ -460,7 +467,7 @@
         // 3. 渲染便签卡片
         dom.notesGrid.innerHTML = filtered.map(function (note) {
           const colorClass = 'note-' + (note.color || 'yellow');
-          const authorDisplay = note.isAnonymous ? '匿名同学' : (note.authorName || '学生');
+          const authorDisplay = note.isAnonymous ? '匿名同学' : (note.authorName || '同学');
           const pinText = note.isPinned ? '📌 已置顶' : '📍 置顶';
           const pinClass = note.isPinned ? 'pinned-active' : '';
 
@@ -475,7 +482,7 @@
                 <span class="note-time">${new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 <div class="action-icons">
                   <button class="btn-card-action ${pinClass}" onclick="window.togglePin('${note.id}', ${!note.isPinned})">${pinText}</button>
-                  <button class="btn-card-action" onclick="window.deleteNote('${note.id}')" title="删除/归档">🗑️</button>
+                  <button class="btn-card-action" onclick="window.deleteNote('${note.id}')" title="删除/归档">${pendingDeleteId === note.id ? '再次点击确认' : '🗑️'}</button>
                 </div>
               </div>
             </div>
@@ -506,9 +513,20 @@
         }
       };
 
-      // 删除便签
+      // 删除便签（两次点击确认）
       window.deleteNote = async function (noteId) {
-        if (!confirm('确认删除并归档该条便签吗？')) return;
+        if (pendingDeleteId !== noteId) {
+          pendingDeleteId = noteId;
+          clearTimeout(pendingDeleteTimer);
+          pendingDeleteTimer = setTimeout(function () {
+            pendingDeleteId = null;
+            renderView();
+          }, 3000);
+          renderView();
+          return;
+        }
+        pendingDeleteId = null;
+        clearTimeout(pendingDeleteTimer);
         try {
           await bridge.invokeCommand('stickynotes.delete_note', { noteId: noteId });
           bridge.ui.toast('便签已归档', 'info');
@@ -518,9 +536,21 @@
         }
       };
 
-      // 一键清屏
+      // 一键清屏（两次点击确认，第二次点击 3 秒内有效）
       dom.btnClearBoard.addEventListener('click', async function () {
-        if (!confirm('⚠️ 警告：确定清屏吗？当前课堂的所有活跃便签将被安全归档保存。')) return;
+        if (!pendingClearConfirm) {
+          pendingClearConfirm = true;
+          dom.btnClearBoard.textContent = '⚠️ 再次点击确认清屏';
+          clearTimeout(pendingClearTimer);
+          pendingClearTimer = setTimeout(function () {
+            pendingClearConfirm = false;
+            dom.btnClearBoard.textContent = CLEAR_BOARD_LABEL;
+          }, 3000);
+          return;
+        }
+        pendingClearConfirm = false;
+        clearTimeout(pendingClearTimer);
+        dom.btnClearBoard.textContent = CLEAR_BOARD_LABEL;
 
         try {
           const res = await bridge.invokeCommand('stickynotes.clear_board', {
@@ -557,13 +587,18 @@
           bridge.ui.toast('请输入便签内容', 'warning');
           return;
         }
+        if (!state.lessonId) {
+          // 便签墙按课节作用域归属，没有课节上下文时学生端收不到
+          bridge.ui.toast('请先在课堂中选择课节，再张贴便签', 'warning');
+          return;
+        }
         const colorRadio = document.querySelector('input[name="tcolor"]:checked');
         const color = colorRadio ? colorRadio.value : 'yellow';
 
         try {
           await bridge.invokeCommand('stickynotes.create_note', {
-            classId: state.classId,
-            lessonId: state.lessonId || 'default_lesson',
+            classId: state.classId || 'default',
+            lessonId: state.lessonId || undefined,
             authorId: 'teacher',
             authorName: '执教教师',
             content: text,

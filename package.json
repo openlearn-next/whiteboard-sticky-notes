@@ -1,6 +1,6 @@
 {
   "name": "openlearn-plugin-whiteboard-sticky-notes",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "课堂便签贴 —— 基于 OpenLearn 白板与大屏的师生互动多色便签板，支持匿名/实名、置顶与一键清屏归档",
