@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课堂便签 - 学生端</title>
+  <!-- 宿主自动提供的沙箱桥接 SDK -->
+  <script src="/plugin-sandbox/view-bridge.js"></script>
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --border-color: #e2e8f0;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #0f172a;
+        --card-bg: #1e293b;
+        --text-main: #f8fafc;
+        --text-sub: #94a3b8;
+        --border-color: #334155;
+      }
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    body {
+      background-color: transparent;
+      color: var(--text-main);
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+      font-size: 13px;
+    }
+    /* 悬浮微件外壳 */
+    .sticky-container {
+      background: var(--card-bg);
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100%;
+      transition: all 0.25s ease;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%);
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+    }
+    .dark .header {
+      background: linear-gradient(135deg, #134e4a 0%, #0c4a6e 100%);
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-title {
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #0369a1;
+    }
+    .badge {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: rgba(3, 105, 161, 0.12);
+      color: #0284c7;
+      font-weight: 600;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      color: var(--text-sub);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s;
+    }
+    .btn-icon:hover {
+      background-color: rgba(0, 0, 0, 0.06);
+      color: var(--text-main);
+    }
+    .content-body {
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex: 1;
+    }
+    /* 发送卡片 */
+    .composer-card {
+      background: #fafaf9;
+      border: 1px dashed #d6d3d1;
+      border-radius: 10px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .dark .composer-card {
+      background: #1c1917;
+      border-color: #44403c;
+    }
+    .textarea-wrapper {
+      position: relative;
+    }
+    textarea {
+      width: 100%;
+      height: 68px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 12px;
+      resize: none;
+      outline: none;
+      background: var(--card-bg);
+      color: var(--text-main);
+      transition: border-color 0.2s;
+    }
+    textarea:focus {
+      border-color: var(--primary);
+    }
+    .char-count {
+      position: absolute;
+      right: 8px;
+      bottom: 6px;
+      font-size: 10px;
+      color: var(--text-sub);
+    }
+    /* 颜色选择器与选项 */
+    .composer-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .color-picker {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .color-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .color-dot:hover {
+      transform: scale(1.18);
+    }
+    .color-dot.active {
+      border-color: #3b82f6;
+      transform: scale(1.15);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+    .color-yellow { background: #fef08a; border: 1px solid #fde047; }
+    .color-pink   { background: #fbcfe8; border: 1px solid #f472b6; }
+    .color-blue   { background: #bae6fd; border: 1px solid #38bdf8; }
+    .color-green  { background: #bbf7d0; border: 1px solid #4ade80; }
+    .color-purple { background: #e9d5ff; border: 1px solid #c084fc; }
+
+    .composer-options {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-sub);
+      cursor: pointer;
+      user-select: none;
+    }
+    .btn-submit {
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+    .btn-submit:hover {
+      background: var(--primary-hover);
+    }
+    .btn-submit:active {
+      transform: scale(0.97);
+    }
+    .btn-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* 便签墙列表 */
+    .notes-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-sub);
+    }
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .note-card {
+      border-radius: 8px;
+      padding: 9px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 80px;
+      transition: transform 0.15s, box-shadow 0.15s;
+      word-break: break-word;
+    }
+    .note-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+    }
+    /* 便签色彩 */
+    .note-yellow { background: #fef9c3; color: #713f12; border: 1px solid #fef08a; }
+    .note-pink   { background: #fce7f3; color: #831843; border: 1px solid #fbcfe8; }
+    .note-blue   { background: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; }
+    .note-green  { background: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; }
+    .note-purple { background: #f3e8ff; color: #581c87; border: 1px solid #e9d5ff; }
+
+    .note-pinned-tag {
+      position: absolute;
+      top: -4px;
+      right: 6px;
+      font-size: 12px;
+      transform: rotate(15deg);
+    }
+    .note-text {
+      font-size: 12px;
+      line-height: 1.4;
+      margin-bottom: 6px;
+      white-space: pre-wrap;
+    }
+    .note-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      opacity: 0.8;
+      border-top: 1px dashed rgba(0, 0, 0, 0.1);
+      padding-top: 4px;
+    }
+    .btn-delete-note {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: inherit;
+      opacity: 0.6;
+      font-size: 11px;
+      padding: 1px 3px;
+      border-radius: 3px;
+    }
+    .btn-delete-note:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.08);
+    }
+    .btn-delete-note.pending {
+      opacity: 1;
+      font-size: 10px;
+      white-space: nowrap;
+      background: rgba(220, 38, 38, 0.12);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 24px 10px;
+      color: var(--text-sub);
+      font-size: 12px;
+    }
+
+    /* ── 紧凑输入条（student.classroom.overlay 专用）────────────────────
+       浮层只负责「张贴」；便签墙由白板卡片（student.view）承载，
+       避免同一份便签墙在课堂视图上出现两次。 */
+    body.compact .header { display: none; }
+    body.compact .content-body {
+      padding: 8px;
+      gap: 0;
+      overflow: hidden;
+    }
+    body.compact .composer-card {
+      border: none;
+      background: transparent;
+      padding: 0;
+      gap: 6px;
+    }
+    body.compact textarea { height: 44px; }
+    body.compact .color-dot { width: 16px; height: 16px; }
+    body.compact .checkbox-label { font-size: 10px; }
+    body.compact .notes-section { display: none; }
+  </style>
+</head>
+<body>
+  <div class="sticky-container" id="app">
+    <!-- 顶部状态栏 -->
+    <div class="header" id="headerToggle">
+      <div class="header-left">
+        <span class="header-title">📌 课堂便签</span>
+        <span class="badge" id="notesCountBadge">0 条</span>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" id="btnRefresh" title="刷新便签">🔄</button>
+        <button class="btn-icon" id="btnToggleMin" title="折叠/展开">➖</button>
+      </div>
+    </div>
+
+    <!-- 主体区域 -->
+    <div class="content-body" id="contentBody">
+      <!-- 便签输入面板 -->
+      <div class="composer-card">
+        <div class="textarea-wrapper">
+          <textarea id="noteInput" placeholder="写下你的想法、提问或灵感（限200字）..." maxlength="200"></textarea>
+          <span class="char-count" id="charCount">0/200</span>
+        </div>
+        <div class="composer-toolbar">
+          <div class="color-picker" id="colorPicker">
+            <div class="color-dot color-yellow active" data-color="yellow" title="经典黄"></div>
+            <div class="color-dot color-pink" data-color="pink" title="关注粉"></div>
+            <div class="color-dot color-blue" data-color="blue" title="疑问蓝"></div>
+            <div class="color-dot color-green" data-color="green" title="结论绿"></div>
+            <div class="color-dot color-purple" data-color="purple" title="创意紫"></div>
+          </div>
+          <div class="composer-options">
+            <label class="checkbox-label">
+              <input type="checkbox" id="isAnonymous">
+              <span>匿名发表</span>
+            </label>
+            <button class="btn-submit" id="btnSubmit">张贴便签</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 便签列表 -->
+      <div class="notes-section">
+        <div class="section-header">
+          <span>实时便签墙</span>
+          <span style="font-size: 10px; font-weight: normal;" id="syncTime">刚刚同步</span>
+        </div>
+        <div class="notes-grid" id="notesGrid">
+          <div class="empty-state">正在拉取课堂便签...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const bridge = window.OpenLearnPluginBridge;
+      // overlay 槽位以紧凑输入条呈现（manifest: view=storage/student.html?mode=compact）；
+      // 便签墙由白板卡片（student.view）承载，避免同一份列表出现两次。
+      const compactMode = new URLSearchParams(window.location.search).get('mode') === 'compact';
+      if (compactMode) document.body.classList.add('compact');
+      let state = {
+        pluginId: '',
+        lessonId: '',
+        classId: '',
+        studentId: '',
+        studentName: '学生',
+        currentColor: 'yellow',
+        notes: [],
+        isMinimized: false,
+        isLoading: false,
+      };
+      // 撤回便签的两步确认状态（需在首次 renderNotes 之前完成初始化）
+      let pendingDeleteId = null;
+      let pendingDeleteTimer = null;
+
+      const dom = {
+        app: document.getElementById('app'),
+        headerToggle: document.getElementById('headerToggle'),
+        contentBody: document.getElementById('contentBody'),
+        btnToggleMin: document.getElementById('btnToggleMin'),
+        btnRefresh: document.getElementById('btnRefresh'),
+        notesCountBadge: document.getElementById('notesCountBadge'),
+        noteInput: document.getElementById('noteInput'),
+        charCount: document.getElementById('charCount'),
+        isAnonymous: document.getElementById('isAnonymous'),
+        btnSubmit: document.getElementById('btnSubmit'),
+        notesGrid: document.getElementById('notesGrid'),
+        syncTime: document.getElementById('syncTime'),
+        colorPicker: document.getElementById('colorPicker'),
+      };
+
+      // 高度自适应与折叠同步协议
+      function syncHeight() {
+        if (!bridge || !bridge.ui || typeof bridge.ui.resize !== 'function') return;
+        if (compactMode) {
+          bridge.ui.resize(104);
+        } else if (state.isMinimized) {
+          bridge.ui.resize(46);
+        } else {
+          bridge.ui.resize(420);
+        }
+      }
+
+      // 1. 初始化桥接
+      bridge.onInit(function (ctx) {
+        state.pluginId = ctx.pluginId || '';
+        state.lessonId = ctx.lessonId || 'default';
+        state.classId = ctx.classId || 'default';
+        if (ctx.studentId) state.studentId = ctx.studentId;
+        if (ctx.studentName) state.studentName = ctx.studentName;
+        if (ctx.theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+        syncHeight();
+        if (!compactMode) fetchNotes();
+      });
+
+      bridge.onContextUpdate(function (ctx) {
+        if (ctx.lessonId) {
+          state.lessonId = ctx.lessonId;
+        }
+        if (ctx.classId) {
+          state.classId = ctx.classId;
+        }
+        if (!compactMode) fetchNotes();
+      });
+
+      // 初始通知宿主挂载高度
+      syncHeight();
+
+      // 2. 字数统计
+      dom.noteInput.addEventListener('input', function () {
+        const len = dom.noteInput.value.length;
+        dom.charCount.textContent = len + '/200';
+      });
+
+      // 3. 颜色选择
+      dom.colorPicker.addEventListener('click', function (e) {
+        const dot = e.target.closest('.color-dot');
+        if (!dot) return;
+        document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+        dot.classList.add('active');
+        state.currentColor = dot.getAttribute('data-color') || 'yellow';
+      });
+
+      // 4. 折叠/展开
+      function toggleMinimize() {
+        if (compactMode) return;
+        state.isMinimized = !state.isMinimized;
+        dom.contentBody.style.display = state.isMinimized ? 'none' : 'flex';
+        dom.btnToggleMin.textContent = state.isMinimized ? '➕' : '➖';
+        syncHeight();
+      }
+
+      dom.btnToggleMin.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toggleMinimize();
+      });
+
+      dom.headerToggle.addEventListener('click', function (e) {
+        if (e.target.closest('.header-actions')) return;
+        toggleMinimize();
+      });
+
+      // 5. 拉取便签列表
+      async function fetchNotes() {
+        try {
+          const res = await bridge.invokeCommand('stickynotes.list_notes', {
+            classId: state.classId || 'default',
+            lessonId: state.lessonId || undefined,
+            status: 'active',
+          });
+          state.notes = Array.isArray(res?.notes) ? res.notes : [];
+          renderNotes();
+        } catch (err) {
+          console.warn('[StickyNotes] fetchNotes error:', err);
+        }
+      }
+
+      function renderNotes() {
+        dom.notesCountBadge.textContent = state.notes.length + ' 条';
+        dom.syncTime.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+        if (state.notes.length === 0) {
+          dom.notesGrid.innerHTML = '<div class="empty-state">当前课堂暂无便签，快来张贴第一张吧！</div>';
+          return;
+        }
+
+        dom.notesGrid.innerHTML = state.notes.map(function (note) {
+          const colorClass = 'note-' + (note.color || 'yellow');
+          const authorDisplay = note.isAnonymous ? '匿名同学' : (note.authorName || '同学');
+          const pinTag = note.isPinned ? '<div class="note-pinned-tag" title="教师置顶">📌</div>' : '';
+          const isMine = state.studentId && note.authorId === state.studentId;
+          const isPendingDelete = pendingDeleteId === note.id;
+          const deleteBtn = isMine
+            ? '<button class="btn-delete-note' + (isPendingDelete ? ' pending' : '') + '" onclick="window.deleteNote(\'' + note.id + '\')">' + (isPendingDelete ? '再次点击确认' : '✕') + '</button>'
+            : '';
+
+          return `
+            <div class="note-card ${colorClass}">
+              ${pinTag}
+              <div class="note-text">${escapeHtml(note.content)}</div>
+              <div class="note-footer">
+                <span>${escapeHtml(authorDisplay)}</span>
+                ${deleteBtn}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      // 6. 发布便签
+      dom.btnSubmit.addEventListener('click', async function () {
+        const text = dom.noteInput.value.trim();
+        if (!text) {
+          bridge.ui.toast('请输入便签内容', 'warning');
+          return;
+        }
+
+        try {
+          dom.btnSubmit.disabled = true;
+          dom.btnSubmit.textContent = '张贴中...';
+
+          await bridge.invokeCommand('stickynotes.create_note', {
+            classId: state.classId || 'default',
+            lessonId: state.lessonId || 'default',
+            authorId: state.studentId || 'std_' + Math.random().toString(36).slice(2, 8),
+            authorName: state.studentName || '同学',
+            content: text,
+            color: state.currentColor,
+            isAnonymous: dom.isAnonymous.checked,
+          });
+
+          dom.noteInput.value = '';
+          dom.charCount.textContent = '0/200';
+          bridge.ui.toast('便签已成功张贴到课堂！', 'success');
+          if (!compactMode) await fetchNotes();
+        } catch (err) {
+          bridge.ui.toast('张贴便签失败: ' + (err.message || String(err)), 'error');
+        } finally {
+          dom.btnSubmit.disabled = false;
+          dom.btnSubmit.textContent = '张贴便签';
+        }
+      });
+
+      // 删除单条便签（暴露给全局以便内联 onclick 调用）
+      // 沙箱 iframe 未授予 allow-modals，原生确认弹窗恒为假值，改用两次点击确认。
+      window.deleteNote = async function (noteId) {
+        if (pendingDeleteId !== noteId) {
+          pendingDeleteId = noteId;
+          clearTimeout(pendingDeleteTimer);
+          pendingDeleteTimer = setTimeout(function () {
+            pendingDeleteId = null;
+            renderNotes();
+          }, 3000);
+          renderNotes();
+          return;
+        }
+        pendingDeleteId = null;
+        clearTimeout(pendingDeleteTimer);
+        try {
+          await bridge.invokeCommand('stickynotes.delete_note', {
+            noteId: noteId,
+            actorId: state.studentId || undefined,
+          });
+          bridge.ui.toast('便签已撤回', 'info');
+          await fetchNotes();
+        } catch (err) {
+          bridge.ui.toast('撤回失败: ' + err.message, 'error');
+        }
+      };
+
+      // 刷新按钮
+      dom.btnRefresh.addEventListener('click', fetchNotes);
+
+      // 7. 定时轮询保持全班实时同步 (每 3 秒，仅便签墙视图需要)
+      if (!compactMode) setInterval(fetchNotes, 3000);
+    })();
+  </script>
+</body>
+</html>

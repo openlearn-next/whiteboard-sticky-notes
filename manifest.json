@@ -1,0 +1,73 @@
+{
+  "id": "@openlearn-ext/whiteboard-sticky-notes",
+  "name": "课堂便签",
+  "version": "0.1.1",
+  "main": "index.js",
+  "executionMode": "process",
+  "description": "基于 OpenLearn 的师生双轨制互动便签贴，支持多色卡片、实名/匿名发言、教师置顶与一键清屏",
+  "author": "OpenLearn Developer",
+  "icon": "StickyNote",
+  "engines": {
+    "openlearn": ">=0.7.0"
+  },
+  "requires": [
+    "@openlearn/core:ICommandBusService@^1.0.0",
+    "@openlearn/core:IActionRegistryService@^1.0.0",
+    "@openlearn/core:IEventBusService@^1.0.0",
+    "@openlearn/core:IDatabase@^1.0.0"
+  ],
+  "capabilitiesProposed": [
+    "lesson:read",
+    "lesson:write",
+    "whiteboard:read",
+    "whiteboard:write"
+  ],
+  "classroomTools": [
+    {
+      "id": "tool_sticky_notes",
+      "name": "课堂便签",
+      "icon": "StickyNote",
+      "commandType": "whiteboard.draw",
+      "payload": {
+        "lessonId": "$lessonId",
+        "type": "plugin",
+        "data": "{\"pluginId\":\"@openlearn-ext/whiteboard-sticky-notes\",\"teacherWidgetId\":\"sticky_notes_board\",\"studentWidgetId\":\"sticky_notes_board\",\"title\":\"课堂便签\",\"width\":640,\"height\":480,\"x\":120,\"y\":80,\"page\":0}"
+      }
+    }
+  ],
+  "contributes": {
+    "teacher.tab": [
+      {
+        "id": "tab_sticky_notes",
+        "label": "课堂便签",
+        "icon": "StickyNote",
+        "view": "storage/teacher.html",
+        "position": 35
+      }
+    ],
+    "teacher.dashboard.widget": [
+      {
+        "id": "sticky_notes_board",
+        "label": "课堂便签",
+        "icon": "StickyNote",
+        "view": "storage/teacher.html"
+      }
+    ],
+    "student.view": [
+      {
+        "id": "sticky_notes_board",
+        "label": "课堂便签",
+        "icon": "StickyNote",
+        "view": "storage/student.html"
+      }
+    ],
+    "student.classroom.overlay": [
+      {
+        "id": "ov_sticky_notes",
+        "label": "课堂便签",
+        "icon": "StickyNote",
+        "view": "storage/student.html?mode=compact"
+      }
+    ]
+  }
+}

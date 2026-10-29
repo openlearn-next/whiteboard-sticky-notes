@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课堂便签管理 - 教师端</title>
+  <!-- 宿主自动提供的沙箱桥接 SDK -->
+  <script src="/plugin-sandbox/view-bridge.js"></script>
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-sub: #64748b;
+      --border-color: #e2e8f0;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-color: #0f172a;
+        --card-bg: #1e293b;
+        --text-main: #f8fafc;
+        --text-sub: #94a3b8;
+        --border-color: #334155;
+      }
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+    /* 统计卡片条 */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-sub);
+      font-weight: 500;
+    }
+    .stat-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    /* 操作栏 */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .filter-tabs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .tab-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      color: var(--text-sub);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover {
+      background: rgba(0, 0, 0, 0.03);
+      color: var(--text-main);
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+    .action-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+    .btn-secondary {
+      background: var(--card-bg);
+      border-color: var(--border-color);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+    .btn-danger {
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: var(--danger);
+    }
+    .btn-danger:hover {
+      background: var(--danger);
+      color: #ffffff;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    /* 教师快速贴便签输入区 */
+    .quick-post-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 16px;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .quick-post-box.show {
+      display: flex;
+    }
+    .post-textarea {
+      width: 100%;
+      height: 70px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 12px;
+      outline: none;
+      resize: vertical;
+      background: var(--bg-color);
+      color: var(--text-main);
+    }
+
+    /* 便签卡片瀑布流网格 */
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+    }
+    .note-card {
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 120px;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .note-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.09);
+    }
+    .note-yellow { background: #fef9c3; color: #713f12; border: 1px solid #fef08a; }
+    .note-pink   { background: #fce7f3; color: #831843; border: 1px solid #fbcfe8; }
+    .note-blue   { background: #e0f2fe; color: #0c4a6e; border: 1px solid #bae6fd; }
+    .note-green  { background: #dcfce7; color: #14532d; border: 1px solid #bbf7d0; }
+    .note-purple { background: #f3e8ff; color: #581c87; border: 1px solid #e9d5ff; }
+
+    .note-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .author-tag {
+      font-weight: 700;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .note-body {
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      flex: 1;
+    }
+    .note-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px dashed rgba(0, 0, 0, 0.1);
+      padding-top: 8px;
+    }
+    .note-time {
+      font-size: 10px;
+      opacity: 0.7;
+    }
+    .action-icons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-card-action {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      transition: background-color 0.15s;
+      color: inherit;
+      opacity: 0.75;
+    }
+    .btn-card-action:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.08);
+    }
+    .pinned-active {
+      opacity: 1;
+      color: #d97706;
+      font-weight: bold;
+    }
+    .empty-placeholder {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 40px 10px;
+      color: var(--text-sub);
+      background: var(--card-bg);
+      border: 1px dashed var(--border-color);
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="panel-header">
+    <div class="title-group">
+      <h2 class="title">📌 课堂互动便签管理板</h2>
+      <span class="subtitle" id="classContextDesc">准备连接班级...</span>
+    </div>
+    <div class="action-group">
+      <button class="btn btn-secondary" id="btnTogglePost">➕ 张贴教师便签</button>
+      <button class="btn btn-secondary" id="btnRefresh">🔄 刷新</button>
+      <button class="btn btn-danger" id="btnClearBoard">🧹 一键清屏归档</button>
+    </div>
+  </div>
+
+  <!-- 统计指标 -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-label">总便签数</span>
+      <span class="stat-value" id="statTotal">0</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">重点置顶</span>
+      <span class="stat-value" id="statPinned" style="color: #f59e0b;">0</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">发言参与人数</span>
+      <span class="stat-value" id="statAuthors" style="color: #10b981;">0</span>
+    </div>
+  </div>
+
+  <!-- 教师发便签区域 (默认折叠) -->
+  <div class="quick-post-box" id="quickPostBox">
+    <textarea class="post-textarea" id="teacherNoteInput" placeholder="输入教师便签或课堂指导提示（限200字）..." maxlength="200"></textarea>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; gap: 8px; align-items: center;" id="teacherColorPicker">
+        <label><input type="radio" name="tcolor" value="yellow" checked> 🟡 黄</label>
+        <label><input type="radio" name="tcolor" value="pink"> 🌸 粉</label>
+        <label><input type="radio" name="tcolor" value="blue"> 💧 蓝</label>
+        <label><input type="radio" name="tcolor" value="green"> 🍀 绿</label>
+        <label><input type="radio" name="tcolor" value="purple"> 🔮 紫</label>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-secondary" id="btnCancelPost">取消</button>
+        <button class="btn btn-primary" id="btnSubmitTeacherNote">发布提示</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 筛选与控制 -->
+  <div class="toolbar">
+    <div class="filter-tabs" id="filterTabs">
+      <button class="tab-btn active" data-filter="all">全部便签</button>
+      <button class="tab-btn" data-filter="pinned">📌 置顶</button>
+      <button class="tab-btn" data-filter="yellow">🟡 黄色</button>
+      <button class="tab-btn" data-filter="pink">🌸 粉色</button>
+      <button class="tab-btn" data-filter="blue">💧 蓝色</button>
+      <button class="tab-btn" data-filter="green">🍀 绿色</button>
+      <button class="tab-btn" data-filter="purple">🔮 紫色</button>
+    </div>
+    <span style="font-size: 11px; color: var(--text-sub);" id="syncIndicator">同步中...</span>
+  </div>
+
+  <!-- 便签网格列表 -->
+  <div class="notes-grid" id="notesGrid">
+    <div class="empty-placeholder">正在同步课堂便签数据...</div>
+  </div>
+
+  <script>
+    (function () {
+      const bridge = window.OpenLearnPluginBridge;
+      let state = {
+        classId: '',
+        lessonId: '',
+        currentFilter: 'all',
+        notes: [],
+        isLoading: false,
+      };
+
+      const dom = {
+        classContextDesc: document.getElementById('classContextDesc'),
+        statTotal: document.getElementById('statTotal'),
+        statPinned: document.getElementById('statPinned'),
+        statAuthors: document.getElementById('statAuthors'),
+        filterTabs: document.getElementById('filterTabs'),
+        notesGrid: document.getElementById('notesGrid'),
+        syncIndicator: document.getElementById('syncIndicator'),
+        btnRefresh: document.getElementById('btnRefresh'),
+        btnClearBoard: document.getElementById('btnClearBoard'),
+        btnTogglePost: document.getElementById('btnTogglePost'),
+        quickPostBox: document.getElementById('quickPostBox'),
+        btnCancelPost: document.getElementById('btnCancelPost'),
+        btnSubmitTeacherNote: document.getElementById('btnSubmitTeacherNote'),
+        teacherNoteInput: document.getElementById('teacherNoteInput'),
+      };
+
+      bridge.onInit(function (ctx) {
+        state.classId = ctx.classId || 'default';
+        state.lessonId = ctx.lessonId || 'default';
+        updateContextDesc();
+        fetchNotes();
+      });
+
+      bridge.onContextUpdate(function (ctx) {
+        let changed = false;
+        if (ctx.classId && ctx.classId !== state.classId) {
+          state.classId = ctx.classId;
+          changed = true;
+        }
+        if (ctx.lessonId && ctx.lessonId !== state.lessonId) {
+          state.lessonId = ctx.lessonId;
+          changed = true;
+        }
+        if (changed) {
+          updateContextDesc();
+          fetchNotes();
+        }
+      });
+
+      function updateContextDesc() {
+        const lessonName = state.lessonId && state.lessonId !== 'default' ? state.lessonId : '课堂协同';
+        const className = state.classId && state.classId !== 'default' ? state.classId : '默认班级';
+        dom.classContextDesc.textContent = `当前课堂: ${lessonName} | 班级: ${className}`;
+      }
+
+      // 拉取便签
+      async function fetchNotes() {
+        try {
+          dom.syncIndicator.textContent = '正在拉取...';
+          const res = await bridge.invokeCommand('stickynotes.list_notes', {
+            classId: state.classId || 'default',
+            lessonId: state.lessonId || undefined,
+            status: 'active',
+          });
+          state.notes = Array.isArray(res?.notes) ? res.notes : [];
+          renderView();
+          dom.syncIndicator.textContent = '最后同步: ' + new Date().toLocaleTimeString();
+        } catch (err) {
+          dom.syncIndicator.textContent = '同步失败: ' + err.message;
+        }
+      }
+
+      function renderView() {
+        // 1. 统计指标计算
+        const total = state.notes.length;
+        const pinned = state.notes.filter(n => n.isPinned).length;
+        const authors = new Set(state.notes.map(n => n.authorId)).size;
+        dom.statTotal.textContent = total;
+        dom.statPinned.textContent = pinned;
+        dom.statAuthors.textContent = authors;
+
+        // 2. 筛选过滤
+        let filtered = state.notes;
+        if (state.currentFilter === 'pinned') {
+          filtered = filtered.filter(n => n.isPinned);
+        } else if (state.currentFilter !== 'all') {
+          filtered = filtered.filter(n => n.color === state.currentFilter);
+        }
+
+        if (filtered.length === 0) {
+          dom.notesGrid.innerHTML = '<div class="empty-placeholder">当前分类下暂无便签</div>';
+          return;
+        }
+
+        // 3. 渲染便签卡片
+        dom.notesGrid.innerHTML = filtered.map(function (note) {
+          const colorClass = 'note-' + (note.color || 'yellow');
+          const authorDisplay = note.isAnonymous ? '匿名同学' : (note.authorName || '学生');
+          const pinText = note.isPinned ? '📌 已置顶' : '📍 置顶';
+          const pinClass = note.isPinned ? 'pinned-active' : '';
+
+          return `
+            <div class="note-card ${colorClass}">
+              <div class="note-header">
+                <span class="author-tag">${escapeHtml(authorDisplay)}</span>
+                <span style="font-size: 11px;">${note.isAnonymous ? '🔒 匿名' : '👤 实名'}</span>
+              </div>
+              <div class="note-body">${escapeHtml(note.content)}</div>
+              <div class="note-actions">
+                <span class="note-time">${new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <div class="action-icons">
+                  <button class="btn-card-action ${pinClass}" onclick="window.togglePin('${note.id}', ${!note.isPinned})">${pinText}</button>
+                  <button class="btn-card-action" onclick="window.deleteNote('${note.id}')" title="删除/归档">🗑️</button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      // 置顶切换
+      window.togglePin = async function (noteId, targetPinned) {
+        try {
+          await bridge.invokeCommand('stickynotes.toggle_pin', {
+            noteId: noteId,
+            isPinned: targetPinned,
+          });
+          bridge.ui.toast(targetPinned ? '已置顶重点便签' : '已取消置顶', 'info');
+          await fetchNotes();
+        } catch (err) {
+          bridge.ui.toast('操作失败: ' + err.message, 'error');
+        }
+      };
+
+      // 删除便签
+      window.deleteNote = async function (noteId) {
+        if (!confirm('确认删除并归档该条便签吗？')) return;
+        try {
+          await bridge.invokeCommand('stickynotes.delete_note', { noteId: noteId });
+          bridge.ui.toast('便签已归档', 'info');
+          await fetchNotes();
+        } catch (err) {
+          bridge.ui.toast('删除失败: ' + err.message, 'error');
+        }
+      };
+
+      // 一键清屏
+      dom.btnClearBoard.addEventListener('click', async function () {
+        if (!confirm('⚠️ 警告：确定清屏吗？当前课堂的所有活跃便签将被安全归档保存。')) return;
+
+        try {
+          const res = await bridge.invokeCommand('stickynotes.clear_board', {
+            classId: state.classId || 'default',
+            lessonId: state.lessonId || undefined,
+          });
+          bridge.ui.toast(`清屏完成，已归档 ${res?.count ?? 0} 条便签`, 'success');
+          await fetchNotes();
+        } catch (err) {
+          bridge.ui.toast('清屏操作失败: ' + err.message, 'error');
+        }
+      });
+
+      // 切换过滤标签
+      dom.filterTabs.addEventListener('click', function (e) {
+        const btn = e.target.closest('.tab-btn');
+        if (!btn) return;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.currentFilter = btn.getAttribute('data-filter') || 'all';
+        renderView();
+      });
+
+      // 教师发便签
+      dom.btnTogglePost.addEventListener('click', function () {
+        dom.quickPostBox.classList.toggle('show');
+      });
+      dom.btnCancelPost.addEventListener('click', function () {
+        dom.quickPostBox.classList.remove('show');
+      });
+      dom.btnSubmitTeacherNote.addEventListener('click', async function () {
+        const text = dom.teacherNoteInput.value.trim();
+        if (!text) {
+          bridge.ui.toast('请输入便签内容', 'warning');
+          return;
+        }
+        const colorRadio = document.querySelector('input[name="tcolor"]:checked');
+        const color = colorRadio ? colorRadio.value : 'yellow';
+
+        try {
+          await bridge.invokeCommand('stickynotes.create_note', {
+            classId: state.classId,
+            lessonId: state.lessonId || 'default_lesson',
+            authorId: 'teacher',
+            authorName: '执教教师',
+            content: text,
+            color: color,
+            isAnonymous: false,
+          });
+          dom.teacherNoteInput.value = '';
+          dom.quickPostBox.classList.remove('show');
+          bridge.ui.toast('教师提示已张贴至全班', 'success');
+          await fetchNotes();
+        } catch (err) {
+          bridge.ui.toast('发布失败: ' + err.message, 'error');
+        }
+      });
+
+      // 刷新
+      dom.btnRefresh.addEventListener('click', fetchNotes);
+
+      // 定时轮询 (每 3 秒同步)
+      setInterval(fetchNotes, 3000);
+    })();
+  </script>
+</body>
+</html>
